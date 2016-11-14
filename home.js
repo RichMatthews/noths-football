@@ -14,33 +14,36 @@ var NothsFootball = React.createClass({
   getInitialState: function(){
     return {
       results: false,
+      emailValue: '',
+      nameValue: '',
       value: ''
     };
   },
 
   handleClick: function(event) {
     this.setState({ results: true });
-    this.setState({ value: event.target.value });
     event.preventDefault();
   },
 
-  handleChange: function(event){
-    this.setState({value: event.target.value})
-    console.log(event.target.value);
-    //this.props.onChange(event.target.value)
+  handleNameChange: function(event){
+    this.setState({nameValue: event.target.value})
+  },
+
+  handleEmailChange: function(event){
+    this.setState({emailValue: event.target.value})
   },
 
   render: function() {
     let output;
     if (this.state.results){
-      output = <Decision />;
+      output = <Decision name={this.state.nameValue} email={this.state.emailValue}/>;
     }
     else {
       output = (
         <div>
           <form onSubmit={this.handleClick}>
-            <input type="text" id="playerName" value={this.state.value} onChange={this.handleChange} placeholder="name" />
-            <input type="email" id="playerEmail" placeholder="use noths email" />
+            <input type="text" id="playerName" value={this.state.nameValue} onChange={this.handleNameChange} placeholder="slack username" required/>
+            <input type="email" id="playerEmail"  value={this.state.emailValue} onChange={this.handleEmailChange} placeholder="use noths email" required/>
             <input type="submit" value="submit" />
           </form>
         </div>
@@ -48,7 +51,7 @@ var NothsFootball = React.createClass({
     }
     return (
       <div>
-        <h1 className="headings" id="heading"> Football </h1>
+        <h1 className="headings" id="heading"> Noths Football </h1>
         {output}
       </div>
     )
@@ -61,13 +64,14 @@ var Decision = React.createClass({
     return {
       canPlayArray: [],
       cantPlayArray: [],
-      thanks: false
+      showThanks: false
     };
   },
 
   componentDidMount: function(){
-    this.retrieveCanPlayReponses();
-    this.retrieveCantPlayReponses();
+    //this.retrieveCanPlayReponses();
+    //this.retrieveCantPlayReponses();
+    //this.postMessageToSlack();
   },
 
   today: function(){
@@ -89,17 +93,20 @@ var Decision = React.createClass({
   },
 
   canPlay: function() {
-    let name = this.props.value;
-    console.log(name, 'name');
-    let email = 'mark@mail';
+    let name = this.props.name;
+    let email = this.props.email;
     this.submitUserResponseCanPlay(this.today(), name, email)
-    this.setState({thanks: true})
+    this.retrieveCanPlayReponses();
+    this.setState({showThanks: true})
+    //this.postMessageToSlack();
   },
 
   cannotPlay: function() {
-    var name = this.state.value;
-    var email = 'sss';
+    let name = this.props.name;
+    let email = this.props.email;
     this.submitUserResponseCantPlay(this.today(), name, email)
+    this.retrieveCantPlayReponses();
+    this.setState({showThanks: true})
   },
 
   // sendEmail: function(){
@@ -130,8 +137,13 @@ var Decision = React.createClass({
   // },
 
   postMessageToSlack: function(){
-    let myArr = ['<@edkerry>', '<@jamiebrown>', '<@robjones>'];
-    let arrToStr = myArr.toString();
+    let slackNames = [];
+    for (var i=0;i<this.state.canPlayArray.length; i++){
+      if (this.state.canPlayArray[i].name!=undefined){
+        slackNames.push(this.state.canPlayArray[i].name)
+      }
+    };
+    let arrToStr = slackNames.toString();
     let Slack = require('browser-node-slack');
     let slack = new Slack('https://hooks.slack.com/services/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');
 
@@ -198,6 +210,7 @@ var Decision = React.createClass({
       var canPlayArray = Object.keys(canResponses.val()).map(function(key) {
         return canResponses.val()[key];
       });
+      console.log(canPlayArray, 'cpa');
       this.setState({canPlayArray: canPlayArray});
     })
   },
@@ -213,15 +226,20 @@ var Decision = React.createClass({
 
   render: function(){
     let output;
-    if (this.state.thanks){
-      output = <Thanks />;
-    }
+    // if (this.state.thanks){
+    //   output = <Thanks />;
+    // }
     return (
       <div id="results" className="search-results">
         <p> Can you play on Tuesday 15th November? </p>
+        {this.state.showThanks ?
+          'Thanks for your response!'
+        :
+        <div>
           <input type="submit" className="decisionButtons" id="canDecisionButton" value="I can play" onClick={() => this.canPlay()}/>
           <input type="submit" className="decisionButtons" id="cantDecisionButton" value="I cannot play" onClick={() => this.cannotPlay()}/>
           <input type="submit" className="decisionButtons" id="cantDecisionButton" value="Email" onClick={() => this.postMessageToSlack()}/>
+        </div> }
         <h2> Available players </h2>
 
         <p id='canPlay'>
@@ -239,7 +257,7 @@ var Decision = React.createClass({
           {
             this.state.cantPlayArray.length
             ? this.state.cantPlayArray.map(function(num, index){
-              return <span key={ index }>Name: {num.name} Date Indicated: {num.dateConfirmed}</span>;}, this)
+              return <p key={ index }>Name: {num.name} Date Indicated: {num.dateConfirmed}</p>;}, this)
             : <p>No one has responded</p>
           }
         </p>
