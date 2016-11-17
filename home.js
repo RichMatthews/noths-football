@@ -1,21 +1,21 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-var firebase = require('firebase');
-//var nodemailer = require('nodemailer');
-//var mg = require('nodemailer-mailgun-transport');
+let firebase = require('firebase');
 import './home.scss';
 import { rootRef, firebase_init, storage } from './firebase_config.js';
 require('es6-promise').polyfill();
 require('isomorphic-fetch');
+import axios from 'axios';
 
 
-var NothsFootball = React.createClass({
+let NothsFootball = React.createClass({
 
   getInitialState: function(){
     return {
       results: false,
       emailValue: '',
       nameValue: '',
+      slackNameValue: '',
       value: ''
     };
   },
@@ -29,6 +29,10 @@ var NothsFootball = React.createClass({
     this.setState({nameValue: event.target.value})
   },
 
+  handleSlackNameChange: function(event){
+    this.setState({slackNameValue: event.target.value})
+  },
+
   handleEmailChange: function(event){
     this.setState({emailValue: event.target.value})
   },
@@ -36,15 +40,16 @@ var NothsFootball = React.createClass({
   render: function() {
     let output;
     if (this.state.results){
-      output = <Decision name={this.state.nameValue} email={this.state.emailValue}/>;
+      output = <Decision name={this.state.nameValue} email={this.state.emailValue} slackName={this.state.slackNameValue}/>;
     }
     else {
       output = (
-        <div>
+        <div id="container">
           <form onSubmit={this.handleClick}>
-            <input type="text" id="playerName" value={this.state.nameValue} onChange={this.handleNameChange} placeholder="slack username" required/>
-            <input type="email" id="playerEmail"  value={this.state.emailValue} onChange={this.handleEmailChange} placeholder="use noths email" required/>
-            <input type="submit" value="submit" />
+            <p><input type="text" id="playerName" value={this.state.nameValue} onChange={this.handleNameChange} placeholder="your name" required/></p>
+            <p><input type="text" id="playerSlackName"  value={this.state.slackNameValue} onChange={this.handleSlackNameChange}placeholder="your slack name" required/></p>
+            <p><input type="email" id="playerEmail"  value={this.state.emailValue} onChange={this.handleEmailChange} placeholder="use noths email" required/></p>
+            <p><input type="submit" value="submit" /></p>
           </form>
         </div>
       );
@@ -58,7 +63,7 @@ var NothsFootball = React.createClass({
   }
 });
 
-var Decision = React.createClass({
+let Decision = React.createClass({
 
   getInitialState: function(){
     return {
@@ -83,118 +88,79 @@ var Decision = React.createClass({
     if(dd<10) {
         dd='0'+dd
     }
-
     if(mm<10) {
         mm='0'+mm
     }
-
     today = mm+'/'+dd+'/'+yyyy;
     return today;
   },
 
+  testfunc: function(){
+    return new Promise((resolve, reject) => {
+      resolve(this.retrieveCanPlayReponses());
+    })
+  },
+
   canPlay: function() {
     let name = this.props.name;
+    let slackName = this.props.slackName;
     let email = this.props.email;
-    this.submitUserResponseCanPlay(this.today(), name, email)
-    this.retrieveCanPlayReponses();
-    this.setState({showThanks: true})
-    //this.postMessageToSlack();
+    this.submitUserResponseCanPlay(this.today(), name, slackName, email)
+    this.testfunc().then(() => {
+      return this.retrieveCantPlayReponses();
+    }).then(() => {
+      return Promise.resolve(this.setState({showThanks: true}))
+    }).then(() => {
+      return this.postToSlack();
+    })
   },
 
   cannotPlay: function() {
     let name = this.props.name;
+    let slackName = this.props.slackName;
     let email = this.props.email;
-    this.submitUserResponseCantPlay(this.today(), name, email)
+    this.submitUserResponseCantPlay(this.today(), name, slackName, email);
+    this.retrieveCanPlayReponses();
     this.retrieveCantPlayReponses();
     this.setState({showThanks: true})
   },
 
-  // sendEmail: function(){
-  //
-  //   var auth = {
-  //     auth: {
-  //       api_key: 'key-18e06b43624051b8bbe767fa1f1231d7',
-  //       domain: 'sandboxaac16680d4de4296a3dbbecba6a8240c.mailgun.org'
-  //     }
-  //   }
-  //
-  //   var nodemailerMailgun = nodemailer.createTransport(mg(auth));
-  //
-  //   nodemailerMailgun.sendMail({
-  //     from: 'Mail Gun Rich Matthews <postmaster@sandboxaac16680d4de4296a3dbbecba6a8240c.mailgun.org>',
-  //     to: 'richmatthews@notonthehighstreet.com',
-  //     subject: 'TEEEST',
-  //     text: 'WAA WAA WEE WAA'
-  //   }, function (err, info) {
-  //     if (err) {
-  //       console.log('Error: ' + err);
-  //     }
-  //     else {
-  //       console.log('Response: ' + info);
-  //     }
-  //   }
-  //  );
-  // },
-
-  postMessageToSlack: function(){
-    let slackNames = [];
-    for (var i=0;i<this.state.canPlayArray.length; i++){
-      if (this.state.canPlayArray[i].name!=undefined){
-        slackNames.push(this.state.canPlayArray[i].name)
-      }
-    };
-    let arrToStr = slackNames.toString();
+  postToSlack: function(){
+    let slackName = this.props.slackName;
     let Slack = require('browser-node-slack');
+    let minNumberPlayers = 7;
+    let availablePlayers = this.state.canPlayArray.length;
     let slack = new Slack('https://hooks.slack.com/services/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');
-
     slack.send({
       channel: "#rich-test-public",
       username: "football-bot",
       icon_emoji: ":soccer:",
-      text: arrToStr + ' have all indicated they will play this week'
+      text: slackName + ' has just indicated they are available this week, we now have ' + availablePlayers + ' players for this week'
     });
   },
 
-  // sendEmail: function(){
-  //   const config = {
-  //     method: 'post',
-  //     url: '/',
-  //     data: {
-  //       domain: 'sandboxaac16680d4de4296a3dbbecba6a8240c.mailgun.org',
-  //       api_key: 'key-18e06b43624051b8bbe767fa1f1231d7',
-  //       from: 'Mail Gun Rich Matthews <postmaster@sandboxaac16680d4de4296a3dbbecba6a8240c.mailgun.org>',
-  //       to: 'richmatthews@notonthehighstreet.com',
-  //       subject: 'TEEEST',
-  //       text: 'WAA WAA WEE WAA'
-  //     }
-  //   };
-  //   axios(config);
-  //   // mailgun: require('mailgun-js')({apiKey: api_key, domain: domain}),
-  //   // mailgun.messages().send(data, function (error, body) {
-  //   //   console.log(body);
-  //   // });
-  // },
-
-  submitUserResponseCanPlay: function(date, name, email){
-    var postData = {
+  submitUserResponseCanPlay: function(date, name, slackName, email){
+    let postData = {
       dateConfirmed: date,
       name: name,
+      slackName: slackName,
       email: email
     };
-    var newPostKey = firebase.database().ref().child('date').push().key;
-    var updates = {};
+    let newPostKey = firebase.database().ref().child('date').push().key;
+    let updates = {};
     updates['date' + '/15-11-2016/' + '/Can Play/' + name] = postData;
     return firebase.database().ref().update(updates);
   },
 
-  submitUserResponseCantPlay: function(date, name, email){
-    var postData = {
+  submitUserResponseCantPlay: function(date, name, slackName, email){
+    let postData = {
       dateConfirmed: date,
       name: name,
+      slackName: slackName,
       email: email
     };
-    var newPostKey = firebase.database().ref().child('date').push().key;
-    var updates = {};
+    let newPostKey = firebase.database().ref().child('date').push().key;
+    let updates = {};
     updates['date' + '/15-11-2016/' + '/Cant Play/' + name] = postData;
     return firebase.database().ref().update(updates);
   },
@@ -206,68 +172,71 @@ var Decision = React.createClass({
   },
 
   retrieveCanPlayReponses: function(){
-    this.retrieveReponsesFromDB('/date/' + '/15-11-2016/' + '/Can Play/').then((canResponses) => {
-      var canPlayArray = Object.keys(canResponses.val()).map(function(key) {
-        return canResponses.val()[key];
-      });
-      console.log(canPlayArray, 'cpa');
-      this.setState({canPlayArray: canPlayArray});
+    return new Promise((resolve, reject) => {
+      this.retrieveReponsesFromDB('/date/' + '/15-11-2016/' + '/Can Play/').then((canResponses) => {
+        let canPlayArray = Object.keys(canResponses.val()).map(function(key) {
+          return canResponses.val()[key];
+        });
+        this.setState({canPlayArray: canPlayArray});
+        resolve();
+      })
     })
   },
 
   retrieveCantPlayReponses: function(){
-    this.retrieveReponsesFromDB('/date/' + '/15-11-2016/' + '/Cant Play/').then((cantResponses) => {
-        var cantPlayArray = Object.keys(cantResponses.val()).map(function(key) {
+    return new Promise((resolve, reject) => {
+      this.retrieveReponsesFromDB('/date/' + '/15-11-2016/' + '/Cant Play/').then((cantResponses) => {
+        let cantPlayArray = Object.keys(cantResponses.val()).map(function(key) {
           return cantResponses.val()[key];
         });
         this.setState({cantPlayArray: cantPlayArray});
+        resolve();
+      })
     })
   },
 
   render: function(){
     let output;
-    // if (this.state.thanks){
-    //   output = <Thanks />;
-    // }
     return (
       <div id="results" className="search-results">
-        <p> Can you play on Tuesday 15th November? </p>
         {this.state.showThanks ?
-          'Thanks for your response!'
+          <div>
+            <p>Thanks for your response!</p>
+            <h2 id="available"> Available players </h2>
+            <div id='canPlay'>
+              {
+                this.state.canPlayArray.length
+                ? this.state.canPlayArray.map(function(num, index){
+                  return <div key={ index }>Name: {num.name} Date Indicated: {num.dateConfirmed}</div>;
+                }, this)
+                : <span>No one has responded</span>
+              }
+            </div>
+
+            <h2 id="unavailable"> Unavailable players </h2>
+            <div id='cantPlay'>
+              {
+                this.state.cantPlayArray.length
+                ? this.state.cantPlayArray.map(function(num, index){
+                  return <div key={ index }>Name: {num.name} Date Indicated: {num.dateConfirmed}</div>;
+                }, this)
+                : <span>No one has responded</span>
+              }
+            </div>
+          </div>
         :
         <div>
-          <input type="submit" className="decisionButtons" id="canDecisionButton" value="I can play" onClick={() => this.canPlay()}/>
-          <input type="submit" className="decisionButtons" id="cantDecisionButton" value="I cannot play" onClick={() => this.cannotPlay()}/>
-          <input type="submit" className="decisionButtons" id="cantDecisionButton" value="Email" onClick={() => this.postMessageToSlack()}/>
+          <p> Can you play on Tuesday 15th November? </p>
+          <span className="decisionButtons" id="canDecisionButton" onClick={() => this.canPlay()}>I can play</span>
+          <span className="decisionButtons" id="cantDecisionButton" onClick={() => this.cannotPlay()}>I cannot play</span>
+          <a type="button" className="decisionButtons" id="cantDecisionButton"  onClick={() => this.sendEmail()} >Email</a>
         </div> }
-        <h2> Available players </h2>
-
-        <p id='canPlay'>
-          {
-            this.state.canPlayArray.length
-            ? this.state.canPlayArray.map(function(num, index){
-              return <p key={ index }>Name: {num.name} Date Indicated: {num.dateConfirmed}</p>;
-            }, this)
-            : <span>No one has responded</span>
-          }
-        </p>
-        <h2> Unavailable players </h2>
-
-        <p id='cantPlay'>
-          {
-            this.state.cantPlayArray.length
-            ? this.state.cantPlayArray.map(function(num, index){
-              return <p key={ index }>Name: {num.name} Date Indicated: {num.dateConfirmed}</p>;}, this)
-            : <p>No one has responded</p>
-          }
-        </p>
-
       </div>
     )
   }
 });
 
-var Thanks = React.createClass({
+let Thanks = React.createClass({
 
   render: function(){
     return (
@@ -283,3 +252,38 @@ var Thanks = React.createClass({
   ReactDOM.render(
     <NothsFootball />, document.getElementById('content')
   );
+
+
+  // sendEmail: function(){
+  //
+  //     let formData = new FormData();
+  //     formData.append('from','Mail Gun Rich Matthews <postmaster@sandboxaac16680d4de4296a3dbbecba6a8240c.mailgun.org>');
+  //     formData.append('to','richmatthews@notonthehighstreet.com');
+  //     formData.append('subject', 'TESTTTTTT');
+  //     formData.append('text', 'FORM DATA TEXT')
+  //     // data: {
+  //     //   from: 'Mail Gun Rich Matthews <postmaster@sandboxaac16680d4de4296a3dbbecba6a8240c.mailgun.org>',
+  //     //   to: 'richmatthews@notonthehighstreet.com',
+  //     //   subject: 'TEEEST',
+  //     //   text: 'BLAH BLAHWAA WAA WEE WAA'
+  //     // }
+  //
+  //     // headers: {
+  //     //   Authorization: 'Basic YXBpOmtleS0xOGUwNmI0MzYyNDA1MWI4YmJlNzY3ZmExZjEyMzFkNw==',
+  //     //   'Content-Type': 'application/x-www-form-urlencoded'
+  //     // },
+  //     const config = {
+  //       method: 'post',
+  //       url: 'https://api.mailgun.net/v3/sandboxaac16680d4de4296a3dbbecba6a8240c.mailgun.org/messages',
+  //
+  //       data: {
+  //         FormData: formData
+  //       }
+  //     };
+  //     axios(config)
+  //       .then(() => {
+  //       })
+  //       .catch((e) => {
+  //       });
+  //
+  // },
