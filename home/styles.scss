@@ -17,6 +17,10 @@ h2#unavailable{
   background-color: blue;
 }
 
+p#nextGame{
+  margin-bottom: 100px;
+}
+
 #canDecisionButton {
   background-color: green;
 }
@@ -26,7 +30,18 @@ h2#unavailable{
 }
 
 .decisionButtons {
+  padding: 15px 25px;
   border: 1px;
   font-size: 25px;
+  outline: none;
   margin: 12px;
+  box-shadow: 0 9px #999;
+  border-radius: 15px;
+  border: none;
+}
+
+.decisionButtons:active {
+  background-color: #3e8e41;
+  box-shadow: 0 5px #666;
+  transform: translateY(4px);
 }

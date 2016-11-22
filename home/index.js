@@ -24,6 +24,8 @@ class NothsFootball extends React.Component{
       value: '',
       canPlayArray: [],
       cantPlayArray: [],
+      playersAvailable: [],
+      playersUnavailable: [],
       showThanks: false,
       decisionPage: false
     };
@@ -73,9 +75,9 @@ class NothsFootball extends React.Component{
   };
 
   canPlay() {
-    let name = this.props.nameValue;
-    let slackName = this.props.slackNameValue;
-    let email = this.props.emailValue;
+    let name = this.state.nameValue;
+    let slackName = this.state.slackNameValue;
+    let email = this.state.emailValue;
     this.changeToThanks();
     this.submitUserResponseCanPlay(this.today(), name, slackName, email)
     this.testfunc().then(() => {
@@ -87,18 +89,18 @@ class NothsFootball extends React.Component{
     })
   };
 
-  cannotPlay() {
-    let name = this.props.nameValue;
-    let slackName = this.props.slackNameValue;
-    let email = this.props.emailValue;
-    this.props.changeToThanks();
+  cantPlay() {
+    let name = this.state.nameValue;
+    let slackName = this.state.slackNameValue;
+    let email = this.state.emailValue;
+    this.changeToThanks();
     this.submitUserResponseCantPlay(this.today(), name, slackName, email);
     this.retrieveCanPlayReponses();
     this.retrieveCantPlayReponses();
   };
 
   postToSlack(){
-    let slackName = this.props.slackNameValue;
+    let slackName = this.state.slackNameValue;
     let Slack = require('browser-node-slack');
     let minNumberPlayers = 7;
     let availablePlayers = this.state.canPlayArray.length;
@@ -173,8 +175,8 @@ class NothsFootball extends React.Component{
         {this.state.showThanks
           ?
           <Thanks
-            playersAvailable={this.state.retrieveCanPlayReponses}
-            playersUnavailable={this.state.retrieveCantPlayReponses}
+            playersAvailable={this.state.canPlayArray}
+            playersUnavailable={this.state.cantPlayArray}
           />
           :
           <div>
@@ -187,7 +189,7 @@ class NothsFootball extends React.Component{
               handleEmailChange={this.handleEmailChange.bind(this)}
               changeToThanks={this.changeToThanks.bind(this)}
               canPlay={this.canPlay.bind(this)}
-              cantPlay={this.cannotPlay.bind(this)}
+              cantPlay={this.cantPlay.bind(this)}
               nameValue={this.state.nameValue}
               emailValue={this.state.emailValue}
               slackNameValue={this.state.slackNameValue}
