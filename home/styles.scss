@@ -1,0 +1,32 @@
+body{
+  font-family: Arial;
+  text-align: center;
+}
+
+h2#available{
+  color: green;
+}
+
+h2#unavailable{
+  color: red;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  background-color: blue;
+}
+
+#canDecisionButton {
+  background-color: green;
+}
+
+#cantDecisionButton {
+  background-color: red;
+}
+
+.decisionButtons {
+  border: 1px;
+  font-size: 25px;
+  margin: 12px;
+}
